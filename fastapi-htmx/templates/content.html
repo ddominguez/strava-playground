@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+    {% for activity in activities %}
+    <div>
+        {{ activity.name }} 
+    </div>
+    {% endfor %}
+{% endblock %}
