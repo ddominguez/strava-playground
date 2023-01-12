@@ -1,2 +1,5 @@
 # strava-playground
-My playground for learning stuff
+My playground for learning stuff.
+
+
+I run marathons BTW.
