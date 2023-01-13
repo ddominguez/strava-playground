@@ -32,11 +32,10 @@ async def index(request: Request):
     if not strava_user or strava.is_access_token_expired(strava_user.get("expires_at")):
         return templates.TemplateResponse("strava_login.html", {"request": request})
 
-    activities = strava.get_activities(strava_user.get('access_token'))
-    request.state.activities = activities
+    request.state.activities = strava.get_activities(strava_user.get('access_token'))
     return templates.TemplateResponse(
         "content.html",
-        {"request": request, "activities": activities}
+        {"request": request}
     )
 
 @app.get("/strava_authorize")

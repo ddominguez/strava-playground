@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-    {% for activity in activities %}
+    {% for activity in request.state.activities %}
     <div>
         {{ activity.name }} 
     </div>
