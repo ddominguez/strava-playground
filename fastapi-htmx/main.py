@@ -15,7 +15,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key)
 
 templates = Jinja2Templates(directory="templates")
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
     strava_user = request.session.get("strava_user")
     # TODO: Refresh token if expired.
@@ -28,7 +28,7 @@ async def index(request: Request):
         {"request": request}
     )
 
-@app.get("/strava_authorize")
+@app.get("/strava_authorize", include_in_schema=False)
 async def strava_authorize(request: Request):
     params = {
         "client_id": settings.strava_client_id,
@@ -40,7 +40,7 @@ async def strava_authorize(request: Request):
         f"{settings.strava_oauth_authorize}?{urllib.parse.urlencode(params)}"
     )
 
-@app.get("/strava_redirect")
+@app.get("/strava_redirect", include_in_schema=False)
 async def strava_redirect(request: Request, code: str):
     if not code:
         return Response(
