@@ -8,20 +8,14 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
+from config import Settings
 import strava
 
-# TODO: Move this to pydantic settings config
-STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID")
-STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET")
-STRAVA_OAUTH_AUTHORIZE = "https://www.strava.com/oauth/authorize"
-STRAVA_OAUTH_TOKEN = "https://www.strava.com/oauth/token"
-
+settings = Settings()
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# TODO: Move secret key to env variable and settings config 
-app.add_middleware(SessionMiddleware, secret_key="change-me-123")
+app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -41,13 +35,13 @@ async def index(request: Request):
 @app.get("/strava_authorize")
 async def strava_authorize(request: Request):
     params = {
-        "client_id": STRAVA_CLIENT_ID,
+        "client_id": settings.strava_client_id,
         "redirect_uri": f"{request.base_url}strava_redirect",
         "response_type": "code",
         "scope": "activity:read_all"
     }
     return RedirectResponse(
-        f"{STRAVA_OAUTH_AUTHORIZE}?{urllib.parse.urlencode(params)}"
+        f"{settings.strava_oauth_authorize}?{urllib.parse.urlencode(params)}"
     )
 
 @app.get("/strava_redirect")
@@ -58,10 +52,10 @@ async def strava_redirect(request: Request, code: str):
             status_code=status.HTTP_400_BAD_REQUEST
         )
     response = httpx.post(
-        STRAVA_OAUTH_TOKEN,
+        settings.strava_oauth_token,
         data={
-            "client_id": STRAVA_CLIENT_ID,
-            "client_secret": STRAVA_CLIENT_SECRET,
+            "client_id": settings.strava_client_id,
+            "client_secret": settings.strava_client_secret,
             "code": code,
             "grant_type": "authorization_code"
         }
