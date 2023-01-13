@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 
@@ -16,4 +16,4 @@ def get_activities(access_token: str):
     return response.json()
 
 def is_access_token_expired(expires_at: int) -> bool:
-    return datetime.utcnow().timestamp() > expires_at
+    return datetime.now(tz=timezone.utc) > datetime.fromtimestamp(expires_at, tz=timezone.utc)
