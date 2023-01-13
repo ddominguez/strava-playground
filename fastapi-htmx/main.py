@@ -1,4 +1,3 @@
-import os
 import urllib.parse
 
 from fastapi import FastAPI, Request, status
@@ -6,12 +5,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-import httpx
 
-from config import Settings
+from config import settings
 import strava
-
-settings = Settings()
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -51,17 +47,6 @@ async def strava_redirect(request: Request, code: str):
             content="Error: Missing code param",
             status_code=status.HTTP_400_BAD_REQUEST
         )
-    response = httpx.post(
-        settings.strava_oauth_token,
-        data={
-            "client_id": settings.strava_client_id,
-            "client_secret": settings.strava_client_secret,
-            "code": code,
-            "grant_type": "authorization_code"
-        }
-    )
-
-    response.raise_for_status()
-    request.session["strava_user"] = response.json()
+    request.session["strava_user"] = strava.authorize_code(code)
     return RedirectResponse("/")
 
