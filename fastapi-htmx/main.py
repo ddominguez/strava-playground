@@ -8,6 +8,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
+import strava
+
 # TODO: Move this to pydantic settings config
 STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID")
 STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET")
@@ -26,20 +28,11 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     strava_user = request.session.get("strava_user")
-    if not strava_user:
+    # TODO: Refresh token if expired.
+    if not strava_user or strava.is_access_token_expired(strava_user.get("expires_at")):
         return templates.TemplateResponse("strava_login.html", {"request": request})
 
-    response = httpx.get(
-        "https://www.strava.com/api/v3/activities",
-        params={
-            "per_page": 10
-        },
-        headers={
-            "Authorization": f"Bearer {strava_user.get('access_token')}"
-        }
-    )
-    response.raise_for_status()
-    activities = response.json()
+    activities = strava.get_activities(strava_user.get('access_token'))
     request.state.activities = activities
     return templates.TemplateResponse(
         "content.html",
