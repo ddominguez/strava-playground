@@ -1,9 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-    {% for activity in request.state.activities %}
-    <div>
-        {{ activity.name }} 
+    <div class="grid grid-cols-12 gap-4 mt-5">
+        <div class="col-span-2 flex flex-col gap-y-2">
+            {% for activity in request.state.activities %}
+            <div class="bg-amber-800 rounded">
+                <a class="block p-2" href="/activity/{{ activity.id }}">{{ activity.name }}</a>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="col-span-10">
+            {% set activity = request.state.activities|first %}
+            {% if activity %}
+            name: {{ activity.name }}<br>
+            distance: {{ activity.distance }}
+            {% endif %}
+        </div>
     </div>
-    {% endfor %}
 {% endblock %}
