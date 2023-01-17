@@ -11,7 +11,7 @@ import strava
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key)
+app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key, max_age=settings.session_max_age)
 
 templates = Jinja2Templates(directory="templates")
 
