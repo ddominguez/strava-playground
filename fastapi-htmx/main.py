@@ -8,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from config import settings
 import strava
+from strava import models
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -16,7 +17,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key, ma
 templates = Jinja2Templates(directory="templates")
 
 # TODO: Replace with better cache library???
-activity_cache = {}
+activity_cache: dict[int, list[models.ActivityOut]] = {}
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
@@ -24,7 +25,10 @@ async def index(request: Request):
     if not strava_user:
         return templates.TemplateResponse("strava_login.html", {"request": request})
 
-    activities = strava.get_activities(strava_user.get("access_token", ""))
+    activities: list[models.ActivityOut] = [
+        models.ActivityOut.build(activity)
+        for activity in strava.get_activities(strava_user.get("access_token", ""))
+    ]
     activity_cache[strava_user["athlete"]["id"]] = activities
     return templates.TemplateResponse(
         "content.html",
@@ -46,7 +50,7 @@ async def get_activity(request: Request, activity_id: int):
             status_code=status.HTTP_400_BAD_REQUEST
         )
     for item in strava_user_activities:
-        if item["id"] == activity_id:
+        if item.id == activity_id:
             activity = item
             break
     return templates.TemplateResponse(
