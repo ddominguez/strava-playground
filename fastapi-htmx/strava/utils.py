@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import typing
 
 import httpx
 
@@ -33,3 +34,9 @@ def get_activities(access_token: str):
 
 def is_access_token_expired(expires_at: int) -> bool:
     return datetime.now(tz=timezone.utc) > datetime.fromtimestamp(expires_at, tz=timezone.utc)
+
+def get_user_from_session(strava_user: dict[str, typing.Any] | None) -> dict[str, typing.Any] | None:
+    if not strava_user or is_access_token_expired(strava_user.get("expires_at", 0)):
+        return None
+    return strava_user
+

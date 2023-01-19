@@ -20,12 +20,11 @@ activity_cache = {}
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
-    strava_user = request.session.get("strava_user")
-    # TODO: Refresh token if expired.
-    if not strava_user or strava.is_access_token_expired(strava_user.get("expires_at")):
+    strava_user = strava.get_user_from_session(request.session.get("strava_user"))
+    if not strava_user:
         return templates.TemplateResponse("strava_login.html", {"request": request})
 
-    activities = strava.get_activities(strava_user.get('access_token'))
+    activities = strava.get_activities(strava_user.get("access_token", ""))
     activity_cache[strava_user["athlete"]["id"]] = activities
     return templates.TemplateResponse(
         "content.html",
@@ -34,8 +33,10 @@ async def index(request: Request):
 
 @app.get("/activity/{activity_id}", include_in_schema=False)
 async def get_activity(request: Request, activity_id: int):
-    strava_user = request.session.get("strava_user")
-    # TODO: Handle missing user
+    strava_user = strava.get_user_from_session(request.session.get("strava_user"))
+    # HTMX will trigger a page refresh if we don't have a strava user.
+    if not strava_user:
+        return Response(headers={"HX-Refresh": "true"})
     strava_user_id = strava_user["athlete"]["id"]
     strava_user_activities = activity_cache.get(strava_user_id)
     activity = None
