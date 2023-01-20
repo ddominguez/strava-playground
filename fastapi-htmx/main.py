@@ -6,9 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from config import settings
-import strava
-from strava import models
+from config.settings import settings
+from strava import api, models, utils
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -21,13 +20,13 @@ activity_cache: dict[int, list[models.ActivityOut]] = {}
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
-    strava_user = strava.get_user_from_session(request.session.get("strava_user"))
+    strava_user = utils.get_user_from_session(request.session.get("strava_user"))
     if not strava_user:
         return templates.TemplateResponse("strava_login.html", {"request": request})
 
     activities: list[models.ActivityOut] = [
         models.ActivityOut.build(activity)
-        for activity in strava.get_activities(strava_user.get("access_token", ""))
+        for activity in api.get_activities(strava_user.get("access_token", ""))
     ]
     activity_cache[strava_user["athlete"]["id"]] = activities
     return templates.TemplateResponse(
@@ -37,7 +36,7 @@ async def index(request: Request):
 
 @app.get("/activity/{activity_id}", include_in_schema=False)
 async def get_activity(request: Request, activity_id: int):
-    strava_user = strava.get_user_from_session(request.session.get("strava_user"))
+    strava_user = utils.get_user_from_session(request.session.get("strava_user"))
     # HTMX will trigger a page refresh if we don't have a strava user.
     if not strava_user:
         return Response(headers={"HX-Refresh": "true"})
@@ -77,6 +76,6 @@ async def strava_redirect(request: Request, code: str):
             content="Error: Missing code param",
             status_code=status.HTTP_400_BAD_REQUEST
         )
-    request.session["strava_user"] = strava.authorize_code(code)
+    request.session["strava_user"] = api.authorize_code(code)
     return RedirectResponse("/")
 
