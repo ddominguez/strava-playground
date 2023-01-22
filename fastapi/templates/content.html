@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="grid grid-cols-12 gap-4">
+        <div class="col-span-2 flex flex-col gap-y-2">
+            {% for activity in activities %}
+            <div class="bg-emerald-700 rounded font-bold">
+                <a
+                    class="block p-2"
+                    href="/activity/{{ activity.id }}"
+                    hx-get="/activity/{{ activity.id }}"
+                    hx-target="div.activity-details"
+                    hx-swap="outerHTML"
+                >
+                    <span class="block font-normal">{{ activity.start_date }}</span>
+                    {{ activity.name }}
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% include "activity.html" %}
+    </div>
+{% endblock %}
