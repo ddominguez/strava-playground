@@ -12,12 +12,21 @@ var (
 	stravaClientSecret = os.Getenv("STRAVA_CLIENT_SECRET")
 )
 
-func indexHandler(response http.ResponseWriter, request *http.Request) {
-	tmpl := template.Must(template.ParseFiles("templates/base.html"))
-	response.Header().Set("Content-Type", "text/html")
-	err := tmpl.Execute(response, nil)
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	tmpl_files := []string{
+		"templates/base.html",
+		"templates/login.html",
+	}
+	tmpl := template.Must(template.ParseFiles(tmpl_files...))
+	err := tmpl.Execute(w, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
