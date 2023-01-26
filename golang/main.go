@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -13,6 +16,27 @@ var (
 	stravaClientId     = os.Getenv("STRAVA_CLIENT_ID")
 	stravaClientSecret = os.Getenv("STRAVA_CLIENT_SECRET")
 )
+
+type StravaAuthorizeCodeBody struct {
+	ClientId     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	Code         string `json:"code"`
+	GrantType    string `json:"grant_type"`
+}
+
+type StravaAuthorizedUser struct {
+	TokenType    string `json:"token_type"`
+	ExpiresAt    int    `json:"expires_at"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+	AccessToken  string `json:"access_token"`
+	Athlete      struct {
+		Id        int    `json:"id"`
+		FirstName string `json:"firstname"`
+		LastName  string `json:"lastname"`
+		Profile   string `json:"profile"`
+	} `json:"athlete"`
+}
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
@@ -39,6 +63,7 @@ func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	q := u.Query()
 	q.Set("client_id", stravaClientId)
+	// TODO: How do we get the scheme??
 	q.Set("redirect_uri", fmt.Sprintf("http://%s/strava_callback", r.Host))
 	q.Set("response_type", "code")
 	q.Set("scope", "activity:read_all")
@@ -47,7 +72,40 @@ func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "strava redirect callback handler.")
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "Missing code param", http.StatusBadRequest)
+		return
+	}
+	authorizeBody := StravaAuthorizeCodeBody{
+		ClientId:     stravaClientId,
+		ClientSecret: stravaClientSecret,
+		Code:         code,
+		GrantType:    "authorization_code",
+	}
+	requestBody, _ := json.Marshal(authorizeBody)
+	response, err := http.Post("https://www.strava.com/oauth/token", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unable to get Strava token", http.StatusBadRequest)
+		return
+	}
+	defer response.Body.Close()
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unable to get Strava token", http.StatusBadRequest)
+		return
+	}
+	var userData StravaAuthorizedUser
+	err = json.Unmarshal(responseBody, &userData)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unable to get authorized user", http.StatusBadRequest)
+		return
+	}
+	log.Println(fmt.Sprintf("Authorized athlete %s %s", userData.Athlete.FirstName, userData.Athlete.LastName))
+	fmt.Fprint(w, userData)
 }
 
 func main() {
