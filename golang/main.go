@@ -41,6 +41,10 @@ type StravaAuthorizedUser struct {
 // Store this here for now :)
 var authorizedUser StravaAuthorizedUser
 
+func httpInternalServerError(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -59,16 +63,16 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles(tmpl_files...))
 	err := tmpl.Execute(w, nil)
 	if err != nil {
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println("Failed to execute templates", err)
+		httpInternalServerError(w, r)
 	}
 }
 
 func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	u, err := url.Parse("https://www.strava.com/oauth/authorize")
 	if err != nil {
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println("Failed to parse strava authorize url", err)
+		httpInternalServerError(w, r)
 		return
 	}
 	q := u.Query()
@@ -96,27 +100,27 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	requestBody, err := json.Marshal(authorizeBody)
 	if err != nil {
-		log.Println(fmt.Sprintf("Request URL (%s) is missing code param", r.URL))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		log.Println("Unable to build authorize request body", err)
+		httpInternalServerError(w, r)
 		return
 	}
 	response, err := http.Post("https://www.strava.com/oauth/token", "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
 		log.Println("Unable to request strava token", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		httpInternalServerError(w, r)
 		return
 	}
 	defer response.Body.Close()
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Println("Unable to read response body", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		httpInternalServerError(w, r)
 		return
 	}
 	var userData StravaAuthorizedUser
 	if err := json.Unmarshal(responseBody, &userData); err != nil {
 		log.Println("Unable to unmarshal response", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		httpInternalServerError(w, r)
 		return
 	}
 	log.Printf("Authorized athlete %s %s", userData.Athlete.FirstName, userData.Athlete.LastName)
