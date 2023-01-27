@@ -11,12 +11,17 @@ from strava import api, models, utils
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key, max_age=settings.session_max_age)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret_key,
+    max_age=settings.session_max_age,
+)
 
 templates = Jinja2Templates(directory="templates")
 
 # TODO: Replace with better cache library???
 activity_cache: dict[int, list[models.ActivityOut]] = {}
+
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
@@ -31,8 +36,9 @@ async def index(request: Request):
     activity_cache[strava_user["athlete"]["id"]] = activities
     return templates.TemplateResponse(
         "content.html",
-        {"request": request, "activities": activities, "activity": activities[0]}
+        {"request": request, "activities": activities, "activity": activities[0]},
     )
+
 
 @app.get("/activity/{activity_id}", include_in_schema=False)
 async def get_activity(request: Request, activity_id: int):
@@ -46,16 +52,16 @@ async def get_activity(request: Request, activity_id: int):
     if not strava_user_activities:
         return Response(
             content=f"Activity Id {activity_id} not found.",
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
     for item in strava_user_activities:
         if item.id == activity_id:
             activity = item
             break
     return templates.TemplateResponse(
-        "activity.html",
-        {"request": request, "activity": activity}
+        "activity.html", {"request": request, "activity": activity}
     )
+
 
 @app.get("/strava_authorize", include_in_schema=False)
 async def strava_authorize(request: Request):
@@ -63,19 +69,18 @@ async def strava_authorize(request: Request):
         "client_id": settings.strava_client_id,
         "redirect_uri": f"{request.base_url}strava_redirect",
         "response_type": "code",
-        "scope": "activity:read_all"
+        "scope": "activity:read_all",
     }
     return RedirectResponse(
         f"{settings.strava_oauth_authorize}?{urllib.parse.urlencode(params)}"
     )
 
+
 @app.get("/strava_redirect", include_in_schema=False)
 async def strava_redirect(request: Request, code: str):
     if not code:
         return Response(
-            content="Error: Missing code param",
-            status_code=status.HTTP_400_BAD_REQUEST
+            content="Error: Missing code param", status_code=status.HTTP_400_BAD_REQUEST
         )
     request.session["strava_user"] = api.authorize_code(code)
     return RedirectResponse("/")
-

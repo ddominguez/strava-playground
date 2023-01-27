@@ -8,6 +8,7 @@ from .utils import (
     seconds_to_hms,
 )
 
+
 class ActivityOut(BaseModel):
     id: int
     name: str
@@ -26,5 +27,5 @@ class ActivityOut(BaseModel):
             start_date=activity["start_date"],
             elapsed_time=seconds_to_hms(activity["elapsed_time"]),
             moving_time=seconds_to_hms(activity["moving_time"]),
-            pace=minutes_per_mile_format(activity["moving_time"], activity["distance"])
+            pace=minutes_per_mile_format(activity["moving_time"], activity["distance"]),
         )
