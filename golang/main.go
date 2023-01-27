@@ -38,15 +38,23 @@ type StravaAuthorizedUser struct {
 	} `json:"athlete"`
 }
 
+// Store this here for now :)
+var authorizedUser StravaAuthorizedUser
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tmpl_files := []string{
-		"templates/base.html",
-		"templates/login.html",
+	tmpl_files := []string{"templates/base.html"}
+	if (StravaAuthorizedUser{}) == authorizedUser {
+		log.Println("User is not authorized")
+		tmpl_files = append(tmpl_files, "templates/login.html")
+	} else {
+		log.Printf("Found authorized user %s %s", authorizedUser.Athlete.FirstName, authorizedUser.Athlete.LastName)
+		tmpl_files = append(tmpl_files, "templates/activities.html")
+		// TODO: Fetch athlete activities using access token stores in authorizedUser
 	}
 	tmpl := template.Must(template.ParseFiles(tmpl_files...))
 	err := tmpl.Execute(w, nil)
@@ -111,8 +119,9 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	log.Println(fmt.Sprintf("Authorized athlete %s %s", userData.Athlete.FirstName, userData.Athlete.LastName))
-	fmt.Fprint(w, userData)
+	log.Printf("Authorized athlete %s %s", userData.Athlete.FirstName, userData.Athlete.LastName)
+	authorizedUser = userData
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
 func main() {
