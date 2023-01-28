@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Self
 
 from pydantic import BaseModel
 
@@ -19,7 +20,7 @@ class ActivityOut(BaseModel):
     pace: str
 
     @classmethod
-    def build(cls, activity: dict) -> "ActivityOut":
+    def build(cls, activity: dict) -> Self:
         return cls(
             id=activity["id"],
             name=activity["name"],
