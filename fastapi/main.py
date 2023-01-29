@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from config.settings import settings
 from strava import api, models, utils
 
-app = FastAPI()
+app = FastAPI(include_in_schema=False)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_middleware(
     SessionMiddleware,
@@ -23,31 +23,46 @@ templates = Jinja2Templates(directory="templates")
 activity_cache: dict[int, list[models.ActivityOut]] = {}
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    strava_user = utils.get_user_from_session(request.session.get("strava_user"))
-    if not strava_user:
-        return templates.TemplateResponse("strava_login.html", {"request": request})
+    user = utils.get_user_from_session(request.session.get("strava_user"))
+    if not user:
+        return RedirectResponse("/login")
+    return RedirectResponse("/activities")
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login(request: Request):
+    user = utils.get_user_from_session(request.session.get("strava_user"))
+    if user:
+        return RedirectResponse("/activities")
+    return templates.TemplateResponse("strava_login.html", {"request": request})
+
+
+@app.get("/activities", response_class=HTMLResponse)
+async def activities(request: Request):
+    user = utils.get_user_from_session(request.session.get("strava_user"))
+    if not user:
+        return RedirectResponse("/login")
 
     activities: list[models.ActivityOut] = [
         models.ActivityOut.build(activity)
-        for activity in api.get_activities(strava_user.get("access_token", ""))
+        for activity in api.get_activities(user.get("access_token", ""))
     ]
-    activity_cache[strava_user["athlete"]["id"]] = activities
+    activity_cache[user["athlete"]["id"]] = activities
     return templates.TemplateResponse(
         "content.html",
         {"request": request, "activities": activities, "activity": activities[0]},
     )
 
 
-@app.get("/activity/{activity_id}", include_in_schema=False)
+@app.get("/activities/{activity_id}")
 async def get_activity(request: Request, activity_id: int):
-    strava_user = utils.get_user_from_session(request.session.get("strava_user"))
+    user = utils.get_user_from_session(request.session.get("strava_user"))
     # HTMX will trigger a page refresh if we don't have a strava user.
-    if not strava_user:
+    if not user:
         return Response(headers={"HX-Refresh": "true"})
-    strava_user_id = strava_user["athlete"]["id"]
-    strava_user_activities = activity_cache.get(strava_user_id)
+    strava_user_activities = activity_cache.get(user["athlete"]["id"])
     activity = None
     if not strava_user_activities:
         return Response(
@@ -63,7 +78,7 @@ async def get_activity(request: Request, activity_id: int):
     )
 
 
-@app.get("/strava_authorize", include_in_schema=False)
+@app.get("/strava_authorize")
 async def strava_authorize(request: Request):
     params = {
         "client_id": settings.strava_client_id,
@@ -76,11 +91,11 @@ async def strava_authorize(request: Request):
     )
 
 
-@app.get("/strava_redirect", include_in_schema=False)
+@app.get("/strava_redirect")
 async def strava_redirect(request: Request, code: str):
     if not code:
         return Response(
             content="Error: Missing code param", status_code=status.HTTP_400_BAD_REQUEST
         )
     request.session["strava_user"] = api.authorize_code(code)
-    return RedirectResponse("/")
+    return RedirectResponse("/activities")
