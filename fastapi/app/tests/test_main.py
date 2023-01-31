@@ -1,33 +1,28 @@
-import json
-from base64 import b64encode
-from datetime import datetime, timezone
-
 from fastapi.testclient import TestClient
-from itsdangerous import TimestampSigner
+import pytest
 
-from app.config.settings import settings
 from app.main import app
 
 client = TestClient(app)
 
 
-# https://github.com/tiangolo/fastapi/issues/929#issuecomment-940982932
-def create_session_cookie(data):
-    signer = TimestampSigner(str(settings.session_secret_key))
-    return signer.sign(b64encode(json.dumps(data).encode("utf-8"))).decode("utf-8")
+@pytest.fixture
+def mock_get_user_from_session_falsy(monkeypatch):
+    monkeypatch.setattr("app.strava.utils.get_user_from_session", lambda _: None)
 
 
-def test_index_redirects_to_login():
+@pytest.fixture
+def mock_get_user_from_session_truthy(monkeypatch):
+    monkeypatch.setattr("app.strava.utils.get_user_from_session", lambda _: {"ok": 1})
+
+
+def test_index_redirects_to_login(mock_get_user_from_session_falsy):
     response = client.get("/", follow_redirects=False)
     assert response.is_redirect
     assert response.headers.get("location") == "/login"
 
 
-def test_index_redirects_to_activities():
-    session_data = {
-        "strava_user": {"expires_at": datetime.now(tz=timezone.utc).timestamp() + 100}
-    }
-    client.cookies = {"session": create_session_cookie(session_data)}
+def test_index_redirects_to_activities(mock_get_user_from_session_truthy):
     response = client.get("/", follow_redirects=False)
     assert response.is_redirect
     assert response.headers.get("location") == "/activities"
