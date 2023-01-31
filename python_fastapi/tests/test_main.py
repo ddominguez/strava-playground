@@ -11,6 +11,7 @@ from ..main import app
 client = TestClient(app)
 
 
+# https://github.com/tiangolo/fastapi/issues/929#issuecomment-940982932
 def create_session_cookie(data):
     signer = TimestampSigner(str(settings.session_secret_key))
     return signer.sign(b64encode(json.dumps(data).encode("utf-8"))).decode("utf-8")
