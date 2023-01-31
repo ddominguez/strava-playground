@@ -6,18 +6,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from .config.settings import settings
-from .strava import api, models, utils
+from app.config.settings import settings
+from app.strava import api, models, utils
 
 app = FastAPI(include_in_schema=False)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.session_secret_key,
     max_age=settings.session_max_age,
 )
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="app/templates")
 
 # TODO: Replace with better cache library???
 activity_cache: dict[int, list[models.ActivityOut]] = {}

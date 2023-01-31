@@ -3,7 +3,7 @@ from typing import Self
 
 from pydantic import BaseModel
 
-from .utils import (
+from app.strava.utils import (
     convert_meters_to_miles,
     minutes_per_mile_format,
     seconds_to_hms,

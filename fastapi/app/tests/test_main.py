@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
 
-from ..config.settings import settings
-from ..main import app
+from app.config.settings import settings
+from app.main import app
 
 client = TestClient(app)
 

@@ -1,6 +1,6 @@
 import httpx
 
-from ..config.settings import settings
+from app.config.settings import settings
 
 
 def authorize_code(code: str):
