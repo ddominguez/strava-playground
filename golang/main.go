@@ -26,8 +26,8 @@ type StravaAuthorizeCodeBody struct {
 
 type StravaAuthorizedUser struct {
 	TokenType    string `json:"token_type"`
-	ExpiresAt    int    `json:"expires_at"`
-	ExpiresIn    int    `json:"expires_in"`
+	ExpiresAt    uint32 `json:"expires_at"`
+	ExpiresIn    uint32 `json:"expires_in"`
 	RefreshToken string `json:"refresh_token"`
 	AccessToken  string `json:"access_token"`
 	Athlete      struct {
@@ -36,6 +36,16 @@ type StravaAuthorizedUser struct {
 		LastName  string `json:"lastname"`
 		Profile   string `json:"profile"`
 	} `json:"athlete"`
+}
+
+type StravaActivity struct {
+	Id          uint64  `json:"id"`
+	Name        string  `json:"name"`
+	Distance    float32 `json:"distance"`
+	StartDate   string  `json:"start_date"`
+	ElapsedTime uint32  `json:"elapsed_time"`
+	MovingTime  uint32  `json:"moving_time"`
+	// Pace        string  `json:"pace"`
 }
 
 // Store this here for now :)
@@ -71,10 +81,52 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func activitiesHandler(w http.ResponseWriter, r *http.Request) {
+	if (StravaAuthorizedUser{}) == authorizedUser {
+		log.Println("User is not authorized")
+		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/activities.html"))
-	err := tmpl.Execute(w, nil)
+
+	// New GET request to fetch a strava athletes activites
+	client := &http.Client{}
+	u, err := url.Parse("https://www.strava.com/api/v3/activities")
 	if err != nil {
+		log.Println("Failed to parse activities api url", err)
+		httpInternalServerError(w, r)
+		return
+	}
+	q := u.Query()
+	q.Set("per_page", "10")
+	u.RawQuery = q.Encode()
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		log.Println("Failed to created new request", err)
+		httpInternalServerError(w, r)
+	}
+	req.URL.Query().Add("per_page", "10")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", authorizedUser.AccessToken))
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(fmt.Sprintf("Unable to complete request to %s", u.String()))
+		httpInternalServerError(w, r)
+	}
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Unable to read response body", err)
+		httpInternalServerError(w, r)
+		return
+	}
+	var activities []StravaActivity
+	if err := json.Unmarshal(respBody, &activities); err != nil {
+		log.Println("Unable to unmarshal response", err)
+		httpInternalServerError(w, r)
+		return
+	}
+
+	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/activities.html"))
+	if err := tmpl.Execute(w, activities); err != nil {
 		log.Println("Failed to execute templates", err)
 		httpInternalServerError(w, r)
 	}
