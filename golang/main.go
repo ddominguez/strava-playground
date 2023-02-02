@@ -51,16 +51,28 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tmpl_files := []string{"templates/base.html"}
 	if (StravaAuthorizedUser{}) == authorizedUser {
 		log.Println("User is not authorized")
-		tmpl_files = append(tmpl_files, "templates/login.html")
+		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 	} else {
 		log.Printf("Found authorized user %s %s", authorizedUser.Athlete.FirstName, authorizedUser.Athlete.LastName)
-		tmpl_files = append(tmpl_files, "templates/activities.html")
-		// TODO: Fetch athlete activities using access token stores in authorizedUser
+		http.Redirect(w, r, "/activities", http.StatusTemporaryRedirect)
 	}
-	tmpl := template.Must(template.ParseFiles(tmpl_files...))
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/login.html"))
+	err := tmpl.Execute(w, nil)
+	if err != nil {
+		log.Println("Failed to execute templates", err)
+		httpInternalServerError(w, r)
+	}
+}
+
+func activitiesHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/activities.html"))
 	err := tmpl.Execute(w, nil)
 	if err != nil {
 		log.Println("Failed to execute templates", err)
@@ -125,12 +137,14 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Authorized athlete %s %s", userData.Athlete.FirstName, userData.Athlete.LastName)
 	authorizedUser = userData
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/activities", http.StatusTemporaryRedirect)
 }
 
 func main() {
 	http.HandleFunc("/strava_callback", callbackHandler)
 	http.HandleFunc("/strava_authorize", authorizeHandler)
+	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/activities", activitiesHandler)
 	http.HandleFunc("/", indexHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
