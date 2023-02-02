@@ -84,6 +84,7 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 	if (StravaAuthorizedUser{}) == authorizedUser {
 		log.Println("User is not authorized")
 		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -103,13 +104,14 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Failed to created new request", err)
 		httpInternalServerError(w, r)
+		return
 	}
-	req.URL.Query().Add("per_page", "10")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", authorizedUser.AccessToken))
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println(fmt.Sprintf("Unable to complete request to %s", u.String()))
 		httpInternalServerError(w, r)
+		return
 	}
 	defer resp.Body.Close()
 	respBody, err := io.ReadAll(resp.Body)
@@ -129,6 +131,7 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 	if err := tmpl.Execute(w, activities); err != nil {
 		log.Println("Failed to execute templates", err)
 		httpInternalServerError(w, r)
+		return
 	}
 }
 
