@@ -50,6 +50,7 @@ type StravaActivity struct {
 
 // Store this here for now :)
 var authorizedUser StravaAuthorizedUser
+var athleteActivites []StravaActivity
 
 func httpInternalServerError(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -120,15 +121,22 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 		httpInternalServerError(w, r)
 		return
 	}
-	var activities []StravaActivity
-	if err := json.Unmarshal(respBody, &activities); err != nil {
+	if err := json.Unmarshal(respBody, &athleteActivites); err != nil {
 		log.Println("Unable to unmarshal response", err)
 		httpInternalServerError(w, r)
 		return
 	}
 
-	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/activities.html"))
-	if err := tmpl.Execute(w, activities); err != nil {
+	data := struct {
+		Activities       []StravaActivity
+		SelectedActivity StravaActivity
+	}{
+		Activities:       athleteActivites,
+		SelectedActivity: athleteActivites[0],
+	}
+
+	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/activities.html", "templates/activity.html"))
+	if err := tmpl.Execute(w, data); err != nil {
 		log.Println("Failed to execute templates", err)
 		httpInternalServerError(w, r)
 		return
