@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -96,8 +95,6 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
 	// New GET request to fetch a strava athletes activites
 	client := &http.Client{}
 	u, err := url.Parse("https://www.strava.com/api/v3/activities")
@@ -123,14 +120,8 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Println("Unable to read response body", err)
-		httpInternalServerError(w, r)
-		return
-	}
-	if err := json.Unmarshal(respBody, &athleteActivites); err != nil {
-		log.Println("Unable to unmarshal response", err)
+	if err := json.NewDecoder(resp.Body).Decode(&athleteActivites); err != nil {
+		log.Println("Failed to decode response body.")
 		httpInternalServerError(w, r)
 		return
 	}
@@ -143,6 +134,7 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 		SelectedActivity: athleteActivites[0],
 	}
 
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/activities.html", "templates/activity.html"))
 	if err := tmpl.Execute(w, data); err != nil {
 		log.Println("Failed to execute templates", err)
@@ -194,14 +186,8 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer response.Body.Close()
-	responseBody, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Println("Unable to read response body", err)
-		httpInternalServerError(w, r)
-		return
-	}
-	if err := json.Unmarshal(responseBody, &authorizedUser); err != nil {
-		log.Println("Unable to unmarshal response", err)
+	if err := json.NewDecoder(response.Body).Decode(&authorizedUser); err != nil {
+		log.Println("Failed to decode response body.")
 		httpInternalServerError(w, r)
 		return
 	}
