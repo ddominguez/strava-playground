@@ -17,40 +17,54 @@ var (
 	stravaClientSecret = os.Getenv("STRAVA_CLIENT_SECRET")
 )
 
-type StravaAuthorizeCodeBody struct {
+type stravaAuthorizeBody struct {
 	ClientId     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 	Code         string `json:"code"`
 	GrantType    string `json:"grant_type"`
 }
 
-type StravaAuthorizedUser struct {
-	TokenType    string `json:"token_type"`
-	ExpiresAt    uint32 `json:"expires_at"`
-	ExpiresIn    uint32 `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-	AccessToken  string `json:"access_token"`
-	Athlete      struct {
-		Id        int    `json:"id"`
-		FirstName string `json:"firstname"`
-		LastName  string `json:"lastname"`
-		Profile   string `json:"profile"`
-	} `json:"athlete"`
+type stravaAuthorizedUser struct {
+	TokenType    string        `json:"token_type"`
+	ExpiresAt    uint32        `json:"expires_at"`
+	ExpiresIn    uint32        `json:"expires_in"`
+	RefreshToken string        `json:"refresh_token"`
+	AccessToken  string        `json:"access_token"`
+	Athlete      stravaAthlete `json:"athlete"`
 }
 
-type StravaActivity struct {
+func (u *stravaAuthorizedUser) hasToken() bool {
+	if u.AccessToken == "" {
+		log.Println("User is not authorized")
+		return false
+	}
+	return true
+}
+
+type stravaAthlete struct {
+	Id        int    `json:"id"`
+	FirstName string `json:"firstname"`
+	LastName  string `json:"lastname"`
+	Profile   string `json:"profile"`
+}
+
+func (a *stravaAthlete) fullName() string {
+	return fmt.Sprintf("%s %s", a.FirstName, a.LastName)
+}
+
+type stravaActivity struct {
 	Id          uint64  `json:"id"`
 	Name        string  `json:"name"`
 	Distance    float32 `json:"distance"`
 	StartDate   string  `json:"start_date"`
 	ElapsedTime uint32  `json:"elapsed_time"`
 	MovingTime  uint32  `json:"moving_time"`
-	// Pace        string  `json:"pace"`
 }
 
-// Store this here for now :)
-var authorizedUser StravaAuthorizedUser
-var athleteActivites []StravaActivity
+var (
+	authorizedUser   stravaAuthorizedUser
+	athleteActivites []stravaActivity
+)
 
 func httpInternalServerError(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -61,14 +75,13 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if (StravaAuthorizedUser{}) == authorizedUser {
-		log.Println("User is not authorized")
+	if !authorizedUser.hasToken() {
 		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-	} else {
-		log.Printf("Found authorized user %s %s", authorizedUser.Athlete.FirstName, authorizedUser.Athlete.LastName)
-		http.Redirect(w, r, "/activities", http.StatusTemporaryRedirect)
+		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	log.Printf("Found authorized user %s", authorizedUser.Athlete.fullName())
+	http.Redirect(w, r, "/activities", http.StatusTemporaryRedirect)
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -82,8 +95,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func activitiesHandler(w http.ResponseWriter, r *http.Request) {
-	if (StravaAuthorizedUser{}) == authorizedUser {
-		log.Println("User is not authorized")
+	if !authorizedUser.hasToken() {
 		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 		return
 	}
@@ -128,8 +140,8 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Activities       []StravaActivity
-		SelectedActivity StravaActivity
+		Activities       []stravaActivity
+		SelectedActivity stravaActivity
 	}{
 		Activities:       athleteActivites,
 		SelectedActivity: athleteActivites[0],
@@ -167,7 +179,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing code param", http.StatusBadRequest)
 		return
 	}
-	authorizeBody := StravaAuthorizeCodeBody{
+	authorizeBody := stravaAuthorizeBody{
 		ClientId:     stravaClientId,
 		ClientSecret: stravaClientSecret,
 		Code:         code,
@@ -192,14 +204,12 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		httpInternalServerError(w, r)
 		return
 	}
-	var userData StravaAuthorizedUser
-	if err := json.Unmarshal(responseBody, &userData); err != nil {
+	if err := json.Unmarshal(responseBody, &authorizedUser); err != nil {
 		log.Println("Unable to unmarshal response", err)
 		httpInternalServerError(w, r)
 		return
 	}
-	log.Printf("Authorized athlete %s %s", userData.Athlete.FirstName, userData.Athlete.LastName)
-	authorizedUser = userData
+	log.Printf("Authorized athlete %s", authorizedUser.Athlete.fullName())
 	http.Redirect(w, r, "/activities", http.StatusTemporaryRedirect)
 }
 
