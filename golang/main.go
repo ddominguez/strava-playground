@@ -34,11 +34,7 @@ type stravaAuthorizedUser struct {
 }
 
 func (u *stravaAuthorizedUser) hasToken() bool {
-	if u.AccessToken == "" {
-		log.Println("User is not authorized")
-		return false
-	}
-	return true
+	return u.AccessToken != ""
 }
 
 type stravaAthlete struct {
