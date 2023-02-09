@@ -3,12 +3,17 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -143,6 +148,48 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func parseIdFromPath(s string) (int, error) {
+	split := strings.Split(strings.Trim(s, "/"), "/")
+	splitLen := len(split)
+	if splitLen != 2 {
+		return -1, errors.New("Invalid Path")
+	}
+
+	id, err := strconv.Atoi(split[1])
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
+}
+
+func getActivityHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := parseIdFromPath(r.URL.Path)
+	if err != nil {
+		log.Println(fmt.Sprintf("Unable to parse id from path %s", r.URL.Path), err)
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	index := slices.IndexFunc(athleteActivites, func(a stravaActivity) bool {
+		return a.Id == uint64(id)
+	})
+
+	if index == -1 {
+		log.Printf("Acivity ID %d not found", id)
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	tmpl := template.Must(template.ParseFiles("templates/single_activity.html"))
+	if err := tmpl.Execute(w, athleteActivites[index]); err != nil {
+		log.Println("Failed to execute templates", err)
+		httpInternalServerError(w, r)
+		return
+	}
+}
+
 func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	u, err := url.Parse("https://www.strava.com/oauth/authorize")
 	if err != nil {
@@ -199,6 +246,7 @@ func main() {
 	http.HandleFunc("/strava_callback", callbackHandler)
 	http.HandleFunc("/strava_authorize", authorizeHandler)
 	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/activities/", getActivityHandler)
 	http.HandleFunc("/activities", activitiesHandler)
 	http.HandleFunc("/", indexHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
