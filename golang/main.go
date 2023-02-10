@@ -182,7 +182,7 @@ func getActivityHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tmpl := template.Must(template.ParseFiles("templates/single_activity.html"))
+	tmpl := template.Must(template.New("activity").ParseFiles("templates/activity.html"))
 	if err := tmpl.Execute(w, athleteActivites[index]); err != nil {
 		log.Println("Failed to execute templates", err)
 		httpInternalServerError(w, r)
