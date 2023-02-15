@@ -120,7 +120,7 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", authorizedUser.AccessToken))
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println(fmt.Sprintf("Unable to complete request to %s", u.String()))
+		log.Printf("Unable to complete request to %s", u.String())
 		httpInternalServerError(w, r)
 		return
 	}
@@ -152,7 +152,7 @@ func parseIdFromPath(s string) (int, error) {
 	split := strings.Split(strings.Trim(s, "/"), "/")
 	splitLen := len(split)
 	if splitLen != 2 {
-		return -1, errors.New("Invalid Path")
+		return -1, errors.New("invalid path")
 	}
 
 	id, err := strconv.Atoi(split[1])
@@ -210,7 +210,7 @@ func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		log.Println(fmt.Sprintf("Request URL (%s) is missing code param", r.URL))
+		log.Printf("Request URL (%s) is missing code param", r.URL)
 		http.Error(w, "Missing code param", http.StatusBadRequest)
 		return
 	}
