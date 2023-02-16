@@ -66,10 +66,13 @@ var (
 	athleteActivites []stravaActivity
 )
 
+// Trigger an Internal Server Error
 func httpInternalServerError(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
+// indexHandler will redirect an authorized Strava user to the activities page.
+// If user is not authorized, then user is redirected to the login page.
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -84,6 +87,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/activities", http.StatusTemporaryRedirect)
 }
 
+// Renders the login page.
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/login.html"))
@@ -94,6 +98,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Renders the activities page for authorized Strava users.
 func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 	if !authorizedUser.hasToken() {
 		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
@@ -148,6 +153,9 @@ func activitiesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Parses the actvitiy id from a request path.
+// It is currently meant for the getActivityHandler.
+// The expected request path is /activities/:activity_id.
 func parseIdFromPath(s string) (int, error) {
 	split := strings.Split(strings.Trim(s, "/"), "/")
 	splitLen := len(split)
@@ -163,6 +171,7 @@ func parseIdFromPath(s string) (int, error) {
 	return id, nil
 }
 
+// Will fetch and render a single strave activity.
 func getActivityHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIdFromPath(r.URL.Path)
 	if err != nil {
@@ -190,6 +199,8 @@ func getActivityHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Will attempt to authorize a Strava user and redirect
+// to a callback handler if successful.
 func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	u, err := url.Parse("https://www.strava.com/oauth/authorize")
 	if err != nil {
@@ -207,6 +218,8 @@ func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
+// callbackHandler will handle the token exchange for an authorized Strava user.
+// If successful, a short lived token and refresh token will be created.
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if code == "" {
